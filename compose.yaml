@@ -1,0 +1,26 @@
+services:
+  api:
+    build:
+      context: .
+    container_name: api
+    environment:
+      - MYSQL_DSN=root:secret@tcp(db:3306)/marketing?multiStatements=true
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: mysql:8.0
+    container_name: mysql8
+    restart: always
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -psecret 2>&1 | grep -q 'mysqld is alive' || exit 1
+      interval: 3s
+      retries: 5
+      start_period: 30s
+    environment:
+      - MYSQL_ROOT_PASSWORD=secret
+      - MYSQL_DATABASE=marketing
+    ports:
+      - 3306:3306
