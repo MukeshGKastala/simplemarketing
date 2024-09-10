@@ -4,10 +4,12 @@ services:
       context: .
     container_name: api
     environment:
-      - MYSQL_DSN=root:secret@tcp(db:3306)/marketing?multiStatements=true
+      - MYSQL_DSN=root:secret@tcp(db:3306)/marketing?multiStatements=true&parseTime=true
     depends_on:
       db:
         condition: service_healthy
+    ports:
+      - 8081:8081
   db:
     image: mysql:8.0
     container_name: mysql8

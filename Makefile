@@ -19,6 +19,10 @@ coverage-func: test
 coverage-html: test
 	@go tool cover -html=coverage.out
 
+generate:
+	@go generate ./...
+	@sqlc generate
+
 clean:
 	@rm -rf coverage.out bin/
 	@go clean
@@ -27,4 +31,4 @@ clean:
 compose:
 	@docker compose up --build 
 
-.PHONY: build run tidy test coverage-func coverage-html clean compose
+.PHONY: build run tidy test coverage-func coverage-html generate clean compose

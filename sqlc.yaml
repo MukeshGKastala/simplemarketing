@@ -1,0 +1,10 @@
+version: '2'
+sql:
+  - engine: mysql
+    schema: db/migration
+    queries: db/query
+    gen:
+      go:
+        package: sqlc
+        out: db
+        emit_interface: true

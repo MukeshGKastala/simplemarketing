@@ -2,10 +2,12 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
+	"net/http"
 	"os"
 
+	"github.com/MukeshGKastala/marketing/api"
+	sqlc "github.com/MukeshGKastala/marketing/db"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/mysql"
@@ -27,7 +29,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("migration successful")
+	store := sqlc.New(db)
+	server := api.NewServer(store)
+	sserver := api.NewStrictHandler(server, nil)
+	mux := http.NewServeMux()
+	api.HandlerFromMux(sserver, mux)
+
+	s := &http.Server{
+		Handler: mux,
+		Addr:    "0.0.0.0:8081",
+	}
+
+	log.Fatal(s.ListenAndServe())
 }
 
 func runMigration(db *sql.DB) error {

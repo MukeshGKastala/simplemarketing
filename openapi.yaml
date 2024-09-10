@@ -1,0 +1,75 @@
+openapi: 3.0.3
+servers:
+  - url: /marketing
+info:
+  title: Simple Marketing API
+  description: A simple marketing service that manages promotions.
+  version: 1.0.0
+  contact:
+    name: Mukesh Kastala
+    url: 'https://www.linkedin.com/in/mukeshkastala/'
+  license:
+    name: MIT
+    url: 'https://opensource.org/license/mit/'
+paths:
+  /promotions:
+    get:
+      summary: List promotions
+      responses:
+        '200':
+          description: A list of promotions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Promotion'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+components:
+  responses:
+    InternalServerError:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: A descriptive error message.
+    Promotion:
+      type: object
+      required:
+        - id
+        - promotion_code
+        - start_date
+        - end_date
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the promotion.
+        promotion_code:
+          type: string
+          description: Unique code for the promotion.
+        start_date:
+          type: string
+          format: date-time
+          description: The time the promotion starts.
+        end_date:
+          type: string
+          format: date-time
+          description: The time the promotion ends.
+        created_at:
+          type: string
+          format: date-time
+          description: The time the promotion was created.
+        updated_at:
+          type: string
+          format: date-time
+          description: The time the promotion was last updated.
