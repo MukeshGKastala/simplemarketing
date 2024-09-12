@@ -35,6 +35,47 @@ CREATE TABLE promotions (
 - **Create a promotion**: 
   - Create a new promotion with a unique `promotion_code`
 - **List promotions**:
-  - Retrieve a list of all currently active (non-expired, non-deleted) promotions
+  - Retrieve a list of all (non-deleted) promotions
 - **Delete a promotion**:
   - Delete a promotion by `id`
+
+## Setup local development
+
+### Install tools
+
+- [Docker desktop](https://www.docker.com/products/docker-desktop)
+- [Golang](https://golang.org/)
+- [Homebrew](https://brew.sh/)
+- [Migrate](https://github.com/golang-migrate/migrate/tree/master/cmd/migrate)
+
+    ```bash
+    brew install golang-migrate
+    ```
+
+- [Sqlc](https://github.com/kyleconroy/sqlc#installation)
+
+    ```bash
+    brew install sqlc
+    ```
+
+### How to generate code
+
+- Generate server and SQL boilerplate:
+
+    ```bash
+    make generate
+    ```
+
+### How to run
+
+- Run network:
+
+    ```bash
+    make compose
+    ```
+
+- Run test:
+
+    ```bash
+    make test
+    ```
