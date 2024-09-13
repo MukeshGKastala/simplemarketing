@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -30,19 +31,21 @@ func main() {
 	}
 
 	store := sqlc.New(db)
-	server := api.NewServer(store)
-	sserver := api.NewStrictHandler(server, nil)
+	server := api.NewStrictHandler(api.NewServer(store), nil)
 	mux := http.NewServeMux()
-	api.HandlerFromMux(sserver, mux)
+	api.HandlerFromMuxWithBaseURL(server, mux, "/marketing")
 
+	// TODO: Configure timeouts
 	s := &http.Server{
 		Handler: mux,
-		Addr:    "0.0.0.0:8081",
+		Addr:    fmt.Sprintf("0.0.0.0:%s", os.Getenv("PORT")),
 	}
 
+	// TODO: Implement signal handling and graceful shutdown
 	log.Fatal(s.ListenAndServe())
 }
 
+// TODO: Refactor to accept DSN parts (host, user, etc.) to support connecting to multiple databases and ease testing.
 func runMigration(db *sql.DB) error {
 	driver, err := mysql.WithInstance(db, &mysql.Config{})
 	if err != nil {

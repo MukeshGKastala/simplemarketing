@@ -8,30 +8,25 @@ import (
 	sqlc "github.com/MukeshGKastala/marketing/db"
 )
 
-type Store interface {
-	ListPromotions(ctx context.Context) ([]sqlc.Promotion, error)
-}
-
 type server struct {
-	store Store
+	store sqlc.Querier
 }
 
-func NewServer(store Store) *server {
+func NewServer(store sqlc.Querier) *server {
 	return &server{store: store}
 }
 
 var _ StrictServerInterface = (*server)(nil)
 
-func (s *server) GetPromotions(ctx context.Context, _ GetPromotionsRequestObject) (GetPromotionsResponseObject, error) {
+func (s *server) ListPromotions(ctx context.Context, _ ListPromotionsRequestObject) (ListPromotionsResponseObject, error) {
 	promotions, err := s.store.ListPromotions(ctx)
 	if err != nil {
-		errMsg := err.Error()
-		return GetPromotions500JSONResponse{
-			InternalServerErrorJSONResponse{Message: &errMsg},
+		return ListPromotions500JSONResponse{
+			InternalServerErrorJSONResponse{Message: err.Error()},
 		}, nil
 	}
 
-	var ret GetPromotions200JSONResponse
+	var ret ListPromotions200JSONResponse
 	for _, p := range promotions {
 		ret = append(ret, Promotion{
 			Id:            int(p.ID),
@@ -44,4 +39,52 @@ func (s *server) GetPromotions(ctx context.Context, _ GetPromotionsRequestObject
 	}
 
 	return ret, nil
+}
+
+func (s *server) CreatePromotion(ctx context.Context, req CreatePromotionRequestObject) (CreatePromotionResponseObject, error) {
+	active, err := s.store.IsPromotionCodAactive(ctx, req.Body.PromotionCode)
+	if err != nil {
+		return CreatePromotion500JSONResponse{
+			InternalServerErrorJSONResponse{Message: err.Error()},
+		}, nil
+	}
+	if active {
+		return CreatePromotion400JSONResponse{
+			BadRequestJSONResponse{Message: "promotion_code is taken"},
+		}, nil
+	}
+
+	res, err := s.store.CreatePromotion(ctx, sqlc.CreatePromotionParams{
+		PromotionCode: req.Body.PromotionCode,
+		StartDate:     req.Body.StartDate,
+		EndDate:       req.Body.EndDate,
+	})
+	if err != nil {
+		return CreatePromotion500JSONResponse{
+			InternalServerErrorJSONResponse{Message: err.Error()},
+		}, nil
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return CreatePromotion500JSONResponse{
+			InternalServerErrorJSONResponse{Message: err.Error()},
+		}, nil
+	}
+
+	p, err := s.store.GetPromotion(ctx, int32(id))
+	if err != nil {
+		return CreatePromotion500JSONResponse{
+			InternalServerErrorJSONResponse{Message: err.Error()},
+		}, nil
+	}
+
+	return CreatePromotion201JSONResponse{
+		Id:            int(id),
+		PromotionCode: p.PromotionCode,
+		StartDate:     p.StartDate,
+		EndDate:       p.EndDate,
+		CreatedAt:     p.CreatedAt,
+		UpdatedAt:     p.UpdatedAt,
+	}, nil
 }
