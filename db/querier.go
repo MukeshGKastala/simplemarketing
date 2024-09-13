@@ -6,9 +6,13 @@ package sqlc
 
 import (
 	"context"
+	"database/sql"
 )
 
 type Querier interface {
+	CreatePromotion(ctx context.Context, arg CreatePromotionParams) (sql.Result, error)
+	GetPromotion(ctx context.Context, id int32) (Promotion, error)
+	IsPromotionCodAactive(ctx context.Context, promotionCode string) (bool, error)
 	ListPromotions(ctx context.Context) ([]Promotion, error)
 }
 

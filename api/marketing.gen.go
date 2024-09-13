@@ -18,7 +18,7 @@ import (
 // ErrorResponse defines model for ErrorResponse.
 type ErrorResponse struct {
 	// Message A descriptive error message.
-	Message *string `json:"message,omitempty"`
+	Message string `json:"message"`
 }
 
 // Promotion defines model for Promotion.
@@ -42,14 +42,35 @@ type Promotion struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// BadRequest defines model for BadRequest.
+type BadRequest = ErrorResponse
+
 // InternalServerError defines model for InternalServerError.
 type InternalServerError = ErrorResponse
+
+// CreatePromotionJSONBody defines parameters for CreatePromotion.
+type CreatePromotionJSONBody struct {
+	// EndDate The time the promotion ends.
+	EndDate time.Time `json:"end_date"`
+
+	// PromotionCode Unique code for the promotion.
+	PromotionCode string `json:"promotion_code"`
+
+	// StartDate The time the promotion starts.
+	StartDate time.Time `json:"start_date"`
+}
+
+// CreatePromotionJSONRequestBody defines body for CreatePromotion for application/json ContentType.
+type CreatePromotionJSONRequestBody CreatePromotionJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// List promotions
 	// (GET /promotions)
-	GetPromotions(w http.ResponseWriter, r *http.Request)
+	ListPromotions(w http.ResponseWriter, r *http.Request)
+	// Create promotion
+	// (POST /promotions)
+	CreatePromotion(w http.ResponseWriter, r *http.Request)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -61,12 +82,27 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
-// GetPromotions operation middleware
-func (siw *ServerInterfaceWrapper) GetPromotions(w http.ResponseWriter, r *http.Request) {
+// ListPromotions operation middleware
+func (siw *ServerInterfaceWrapper) ListPromotions(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetPromotions(w, r)
+		siw.Handler.ListPromotions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// CreatePromotion operation middleware
+func (siw *ServerInterfaceWrapper) CreatePromotion(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePromotion(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -190,34 +226,74 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	m.HandleFunc("GET "+options.BaseURL+"/promotions", wrapper.GetPromotions)
+	m.HandleFunc("GET "+options.BaseURL+"/promotions", wrapper.ListPromotions)
+	m.HandleFunc("POST "+options.BaseURL+"/promotions", wrapper.CreatePromotion)
 
 	return m
 }
 
+type BadRequestJSONResponse ErrorResponse
+
 type InternalServerErrorJSONResponse ErrorResponse
 
-type GetPromotionsRequestObject struct {
+type ListPromotionsRequestObject struct {
 }
 
-type GetPromotionsResponseObject interface {
-	VisitGetPromotionsResponse(w http.ResponseWriter) error
+type ListPromotionsResponseObject interface {
+	VisitListPromotionsResponse(w http.ResponseWriter) error
 }
 
-type GetPromotions200JSONResponse []Promotion
+type ListPromotions200JSONResponse []Promotion
 
-func (response GetPromotions200JSONResponse) VisitGetPromotionsResponse(w http.ResponseWriter) error {
+func (response ListPromotions200JSONResponse) VisitListPromotionsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetPromotions500JSONResponse struct {
+type ListPromotions500JSONResponse struct {
 	InternalServerErrorJSONResponse
 }
 
-func (response GetPromotions500JSONResponse) VisitGetPromotionsResponse(w http.ResponseWriter) error {
+func (response ListPromotions500JSONResponse) VisitListPromotionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreatePromotionRequestObject struct {
+	Body *CreatePromotionJSONRequestBody
+}
+
+type CreatePromotionResponseObject interface {
+	VisitCreatePromotionResponse(w http.ResponseWriter) error
+}
+
+type CreatePromotion201JSONResponse Promotion
+
+func (response CreatePromotion201JSONResponse) VisitCreatePromotionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreatePromotion400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreatePromotion400JSONResponse) VisitCreatePromotionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreatePromotion500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response CreatePromotion500JSONResponse) VisitCreatePromotionResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -228,7 +304,10 @@ func (response GetPromotions500JSONResponse) VisitGetPromotionsResponse(w http.R
 type StrictServerInterface interface {
 	// List promotions
 	// (GET /promotions)
-	GetPromotions(ctx context.Context, request GetPromotionsRequestObject) (GetPromotionsResponseObject, error)
+	ListPromotions(ctx context.Context, request ListPromotionsRequestObject) (ListPromotionsResponseObject, error)
+	// Create promotion
+	// (POST /promotions)
+	CreatePromotion(ctx context.Context, request CreatePromotionRequestObject) (CreatePromotionResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -260,23 +339,54 @@ type strictHandler struct {
 	options     StrictHTTPServerOptions
 }
 
-// GetPromotions operation middleware
-func (sh *strictHandler) GetPromotions(w http.ResponseWriter, r *http.Request) {
-	var request GetPromotionsRequestObject
+// ListPromotions operation middleware
+func (sh *strictHandler) ListPromotions(w http.ResponseWriter, r *http.Request) {
+	var request ListPromotionsRequestObject
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetPromotions(ctx, request.(GetPromotionsRequestObject))
+		return sh.ssi.ListPromotions(ctx, request.(ListPromotionsRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetPromotions")
+		handler = middleware(handler, "ListPromotions")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetPromotionsResponseObject); ok {
-		if err := validResponse.VisitGetPromotionsResponse(w); err != nil {
+	} else if validResponse, ok := response.(ListPromotionsResponseObject); ok {
+		if err := validResponse.VisitListPromotionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreatePromotion operation middleware
+func (sh *strictHandler) CreatePromotion(w http.ResponseWriter, r *http.Request) {
+	var request CreatePromotionRequestObject
+
+	var body CreatePromotionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreatePromotion(ctx, request.(CreatePromotionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreatePromotion")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreatePromotionResponseObject); ok {
+		if err := validResponse.VisitCreatePromotionResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

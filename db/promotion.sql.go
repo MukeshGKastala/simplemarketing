@@ -7,15 +7,70 @@ package sqlc
 
 import (
 	"context"
+	"database/sql"
+	"time"
 )
 
+const createPromotion = `-- name: CreatePromotion :execresult
+INSERT INTO promotions (
+    promotion_code,
+    start_date,
+    end_date
+) VALUES (
+    ?, ?, ?
+)
+`
+
+type CreatePromotionParams struct {
+	PromotionCode string
+	StartDate     time.Time
+	EndDate       time.Time
+}
+
+func (q *Queries) CreatePromotion(ctx context.Context, arg CreatePromotionParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, createPromotion, arg.PromotionCode, arg.StartDate, arg.EndDate)
+}
+
+const getPromotion = `-- name: GetPromotion :one
+SELECT id, promotion_code, start_date, end_date, created_at, updated_at, deleted_at FROM promotions
+WHERE id = ? LIMIT 1
+`
+
+func (q *Queries) GetPromotion(ctx context.Context, id int32) (Promotion, error) {
+	row := q.db.QueryRowContext(ctx, getPromotion, id)
+	var i Promotion
+	err := row.Scan(
+		&i.ID,
+		&i.PromotionCode,
+		&i.StartDate,
+		&i.EndDate,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const isPromotionCodAactive = `-- name: IsPromotionCodAactive :one
+SELECT EXISTS (
+    SELECT 1 FROM promotions
+    WHERE
+        promotion_code = ?
+        AND CURRENT_TIMESTAMP BETWEEN start_date AND end_date
+        AND deleted_at IS NULL
+) AS is_exists
+`
+
+func (q *Queries) IsPromotionCodAactive(ctx context.Context, promotionCode string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, isPromotionCodAactive, promotionCode)
+	var is_exists bool
+	err := row.Scan(&is_exists)
+	return is_exists, err
+}
+
 const listPromotions = `-- name: ListPromotions :many
-SELECT
-	id, promotion_code, start_date, end_date, created_at, updated_at, deleted_at
-FROM
-	promotions
-WHERE
-	deleted_at IS NULL
+SELECT id, promotion_code, start_date, end_date, created_at, updated_at, deleted_at FROM promotions
+WHERE deleted_at IS NULL
 `
 
 func (q *Queries) ListPromotions(ctx context.Context) ([]Promotion, error) {
