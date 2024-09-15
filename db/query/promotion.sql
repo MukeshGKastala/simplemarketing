@@ -15,11 +15,11 @@ INSERT INTO promotions (
     ?, ?, ?
 );
 
--- name: IsPromotionCodAactive :one
-SELECT EXISTS (
-    SELECT 1 FROM promotions
-    WHERE
-        promotion_code = ?
-        AND CURRENT_TIMESTAMP BETWEEN start_date AND end_date
-        AND deleted_at IS NULL
-) AS is_exists;
+-- name: IsPromotionCodeTaken :one
+SELECT COUNT(1) > 0 AS is_exists
+FROM promotions
+WHERE
+    promotion_code = ?
+    AND deleted_at IS NULL
+    AND sqlc.arg(start_date) < end_date
+    AND sqlc.arg(end_date) > start_date;

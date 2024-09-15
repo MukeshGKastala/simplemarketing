@@ -3,7 +3,7 @@
 //   sqlc v1.27.0
 // source: promotion.sql
 
-package sqlc
+package db
 
 import (
 	"context"
@@ -51,18 +51,24 @@ func (q *Queries) GetPromotion(ctx context.Context, id int32) (Promotion, error)
 	return i, err
 }
 
-const isPromotionCodAactive = `-- name: IsPromotionCodAactive :one
-SELECT EXISTS (
-    SELECT 1 FROM promotions
-    WHERE
-        promotion_code = ?
-        AND CURRENT_TIMESTAMP BETWEEN start_date AND end_date
-        AND deleted_at IS NULL
-) AS is_exists
+const isPromotionCodeTaken = `-- name: IsPromotionCodeTaken :one
+SELECT COUNT(1) > 0 AS is_exists
+FROM promotions
+WHERE
+    promotion_code = ?
+    AND deleted_at IS NULL
+    AND ? < end_date
+    AND ? > start_date
 `
 
-func (q *Queries) IsPromotionCodAactive(ctx context.Context, promotionCode string) (bool, error) {
-	row := q.db.QueryRowContext(ctx, isPromotionCodAactive, promotionCode)
+type IsPromotionCodeTakenParams struct {
+	PromotionCode string
+	StartDate     time.Time
+	EndDate       time.Time
+}
+
+func (q *Queries) IsPromotionCodeTaken(ctx context.Context, arg IsPromotionCodeTakenParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, isPromotionCodeTaken, arg.PromotionCode, arg.StartDate, arg.EndDate)
 	var is_exists bool
 	err := row.Scan(&is_exists)
 	return is_exists, err

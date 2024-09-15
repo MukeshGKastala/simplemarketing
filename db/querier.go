@@ -2,7 +2,7 @@
 // versions:
 //   sqlc v1.27.0
 
-package sqlc
+package db
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 type Querier interface {
 	CreatePromotion(ctx context.Context, arg CreatePromotionParams) (sql.Result, error)
 	GetPromotion(ctx context.Context, id int32) (Promotion, error)
-	IsPromotionCodAactive(ctx context.Context, promotionCode string) (bool, error)
+	IsPromotionCodeTaken(ctx context.Context, arg IsPromotionCodeTakenParams) (bool, error)
 	ListPromotions(ctx context.Context) ([]Promotion, error)
 }
 

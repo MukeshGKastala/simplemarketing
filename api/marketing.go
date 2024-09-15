@@ -5,14 +5,14 @@ package api
 import (
 	"context"
 
-	sqlc "github.com/MukeshGKastala/marketing/db"
+	"github.com/MukeshGKastala/marketing/db"
 )
 
 type server struct {
-	store sqlc.Querier
+	store db.Querier
 }
 
-func NewServer(store sqlc.Querier) *server {
+func NewServer(store db.Querier) *server {
 	return &server{store: store}
 }
 
@@ -42,19 +42,23 @@ func (s *server) ListPromotions(ctx context.Context, _ ListPromotionsRequestObje
 }
 
 func (s *server) CreatePromotion(ctx context.Context, req CreatePromotionRequestObject) (CreatePromotionResponseObject, error) {
-	active, err := s.store.IsPromotionCodAactive(ctx, req.Body.PromotionCode)
+	taken, err := s.store.IsPromotionCodeTaken(ctx, db.IsPromotionCodeTakenParams{
+		PromotionCode: req.Body.PromotionCode,
+		StartDate:     req.Body.StartDate,
+		EndDate:       req.Body.EndDate,
+	})
 	if err != nil {
 		return CreatePromotion500JSONResponse{
 			InternalServerErrorJSONResponse{Message: err.Error()},
 		}, nil
 	}
-	if active {
+	if taken {
 		return CreatePromotion400JSONResponse{
 			BadRequestJSONResponse{Message: "promotion_code is taken"},
 		}, nil
 	}
 
-	res, err := s.store.CreatePromotion(ctx, sqlc.CreatePromotionParams{
+	res, err := s.store.CreatePromotion(ctx, db.CreatePromotionParams{
 		PromotionCode: req.Body.PromotionCode,
 		StartDate:     req.Body.StartDate,
 		EndDate:       req.Body.EndDate,
