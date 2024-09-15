@@ -29,6 +29,6 @@ clean:
 	@docker compose down
 
 compose:
-	@docker compose up --build 
+	@docker compose up --build
 
 .PHONY: build run tidy test coverage-func coverage-html generate clean compose
