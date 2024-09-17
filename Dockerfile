@@ -19,7 +19,7 @@ FROM scratch
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /etc/passwd /etc/passwd
 
-COPY --from=build /app/db/migration /migration
+COPY --from=build /app/db/migration db/migration
 COPY --from=build /app/bin/marketing-api /bin/marketing-api
 
 USER mukesh

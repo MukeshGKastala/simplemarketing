@@ -52,7 +52,7 @@ func runMigration(db *sql.DB) error {
 		return err
 	}
 
-	m, err := migrate.NewWithDatabaseInstance("file://migration", "mysql", driver)
+	m, err := migrate.NewWithDatabaseInstance("file://db/migration", "mysql", driver)
 	if err != nil {
 		return err
 	}
