@@ -36,8 +36,6 @@ CREATE TABLE promotions (
   - Create a new promotion with a unique `promotion_code`
 - **List promotions**:
   - Retrieve a list of all (non-deleted) promotions
-- **Delete a promotion**:
-  - Delete a promotion by `id`
 
 ## Setup local development
 
