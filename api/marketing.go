@@ -4,15 +4,16 @@ package api
 
 import (
 	"context"
+	"errors"
 
 	"github.com/MukeshGKastala/marketing/db"
 )
 
 type server struct {
-	store db.Querier
+	store db.Store
 }
 
-func NewServer(store db.Querier) *server {
+func NewServer(store db.Store) *server {
 	return &server{store: store}
 }
 
@@ -42,53 +43,30 @@ func (s *server) ListPromotions(ctx context.Context, _ ListPromotionsRequestObje
 }
 
 func (s *server) CreatePromotion(ctx context.Context, req CreatePromotionRequestObject) (CreatePromotionResponseObject, error) {
-	taken, err := s.store.IsPromotionCodeTaken(ctx, db.IsPromotionCodeTakenParams{
-		PromotionCode: req.Body.PromotionCode,
-		StartDate:     req.Body.StartDate,
-		EndDate:       req.Body.EndDate,
+	promotion, err := s.store.CreatePromotionTx(ctx, db.CreatePromotionTxParams{
+		CreatePromotionParams: db.CreatePromotionParams{
+			PromotionCode: req.Body.PromotionCode,
+			StartDate:     req.Body.StartDate,
+			EndDate:       req.Body.EndDate,
+		},
 	})
 	if err != nil {
-		return CreatePromotion500JSONResponse{
-			InternalServerErrorJSONResponse{Message: err.Error()},
-		}, nil
-	}
-	if taken {
-		return CreatePromotion400JSONResponse{
-			BadRequestJSONResponse{Message: "promotion_code is taken"},
-		}, nil
-	}
-
-	res, err := s.store.CreatePromotion(ctx, db.CreatePromotionParams{
-		PromotionCode: req.Body.PromotionCode,
-		StartDate:     req.Body.StartDate,
-		EndDate:       req.Body.EndDate,
-	})
-	if err != nil {
-		return CreatePromotion500JSONResponse{
-			InternalServerErrorJSONResponse{Message: err.Error()},
-		}, nil
-	}
-
-	id, err := res.LastInsertId()
-	if err != nil {
-		return CreatePromotion500JSONResponse{
-			InternalServerErrorJSONResponse{Message: err.Error()},
-		}, nil
-	}
-
-	p, err := s.store.GetPromotion(ctx, int32(id))
-	if err != nil {
+		if errors.Is(err, db.ErrDuplicateEntry) {
+			return CreatePromotion400JSONResponse{
+				BadRequestJSONResponse{Message: err.Error()},
+			}, nil
+		}
 		return CreatePromotion500JSONResponse{
 			InternalServerErrorJSONResponse{Message: err.Error()},
 		}, nil
 	}
 
 	return CreatePromotion201JSONResponse{
-		Id:            int(id),
-		PromotionCode: p.PromotionCode,
-		StartDate:     p.StartDate,
-		EndDate:       p.EndDate,
-		CreatedAt:     p.CreatedAt,
-		UpdatedAt:     p.UpdatedAt,
+		Id:            int(promotion.ID),
+		PromotionCode: promotion.PromotionCode,
+		StartDate:     promotion.StartDate,
+		EndDate:       promotion.EndDate,
+		CreatedAt:     promotion.CreatedAt,
+		UpdatedAt:     promotion.UpdatedAt,
 	}, nil
 }

@@ -30,7 +30,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	store := sqlc.New(db)
+	store := sqlc.NewStore(db)
 	server := api.NewStrictHandler(api.NewServer(store), nil)
 	mux := http.NewServeMux()
 	api.HandlerFromMuxWithBaseURL(server, mux, "/marketing")

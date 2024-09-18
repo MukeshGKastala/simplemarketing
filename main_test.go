@@ -28,7 +28,7 @@ func TestSequentialCreatePromotionRequests(t *testing.T) {
 
 	require.NoError(t, runMigration(db.db))
 
-	svc := api.NewServer(sqlc.New(db.db))
+	svc := api.NewServer(sqlc.NewStore(db.db))
 
 	for i := 0; i < 5; i++ {
 		resp, err := svc.CreatePromotion(context.Background(), api.CreatePromotionRequestObject{
@@ -60,7 +60,7 @@ func TestConcurrentCreatePromotionRequests(t *testing.T) {
 
 	require.NoError(t, runMigration(db.db))
 
-	svc := api.NewServer(sqlc.New(db.db))
+	svc := api.NewServer(sqlc.NewStore(db.db))
 
 	g, ctx := errgroup.WithContext(context.Background())
 
@@ -77,7 +77,7 @@ func TestConcurrentCreatePromotionRequests(t *testing.T) {
 		})
 	}
 
-	require.Error(t, g.Wait())
+	require.NoError(t, g.Wait())
 
 	obj, err := svc.ListPromotions(context.Background(), api.ListPromotionsRequestObject{})
 	require.NoError(t, err)
@@ -141,6 +141,11 @@ func createTestDB(t *testing.T, version string) *testDB {
 	}); err != nil {
 		resource.Close()
 		t.Fatalf("could not connect to mysql container: %s", err)
+	}
+
+	if _, err := db.Exec("SET GLOBAL transaction_isolation = 'SERIALIZABLE';"); err != nil {
+		resource.Close()
+		t.Fatalf("failed to set mysql transaction isolation level: %s", err)
 	}
 
 	return &testDB{db, resource}
