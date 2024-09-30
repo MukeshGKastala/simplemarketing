@@ -143,11 +143,6 @@ func createTestDB(t *testing.T, version string) *testDB {
 		t.Fatalf("could not connect to mysql container: %s", err)
 	}
 
-	if _, err := db.Exec("SET GLOBAL transaction_isolation = 'SERIALIZABLE';"); err != nil {
-		resource.Close()
-		t.Fatalf("failed to set mysql transaction isolation level: %s", err)
-	}
-
 	return &testDB{db, resource}
 }
 

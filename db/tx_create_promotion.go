@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 )
 
@@ -50,7 +51,7 @@ func (store *SQLStore) CreatePromotionTx(ctx context.Context, arg CreatePromotio
 
 		result.Promotion = p
 		return nil
-	})
+	}, WithIsolationLevel(sql.LevelSerializable))
 
 	return result, err
 }
